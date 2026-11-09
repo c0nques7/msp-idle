@@ -167,8 +167,11 @@ export const has = (s: GameState, id: UpgradeId) => !!s.upgrades[id]
 export const slots = (s: GameState) => (has(s, 'thirdMonitor') ? 3 : has(s, 'secondMonitor') ? 2 : 1)
 export const repMultiplier = (s: GameState) => 1 + s.reputation / 5
 export const clickPower = (s: GameState) => (has(s, 'shortcuts') ? 2 : 1)
+/** Tickets per second your hired techs can close in stage 1. */
+export const techCapacity = (s: GameState) => (s.juniors * 1000) / JUNIOR_INTERVAL + (has(s, 'senior') ? 1000 / SENIOR_INTERVAL : 0)
+/** New clients come with each hire, so techs always have paid work waiting. */
 export const spawnInterval = (s: GameState) =>
-  s.stage === 2 ? officeSpawnInterval(s) : Math.max(1500, 3500 - s.ticketsClosed * 8)
+  s.stage === 2 ? officeSpawnInterval(s) : 1000 / (1000 / Math.max(1500, 3500 - s.ticketsClosed * 8) + 0.85 * techCapacity(s))
 export const wagesPerSec = (s: GameState) => s.juniors * JUNIOR_WAGE + (has(s, 'senior') ? SENIOR_WAGE : 0)
 
 export function unlockedKinds(s: GameState): TicketKind[] {

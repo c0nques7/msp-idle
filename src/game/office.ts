@@ -163,8 +163,21 @@ export function teamSpeed(s: GameState): number {
   return speed
 }
 
-/** Client tickets arrive faster as the team grows. */
-export const officeSpawnInterval = (s: GameState) => 1000 / (0.6 + 0.22 * workingStaff(s))
+/** Tickets per second the team can close, including speed perks and problems. */
+export function staffCapacity(s: GameState): number {
+  if (!s.office) return 0
+  const base = s.office.staff.reduce((sum, x) => {
+    const r = ROLES[x.role]
+    return x.ready && r.interval > 0 ? sum + 1000 / r.interval : sum
+  }, 0)
+  return base * teamSpeed(s)
+}
+
+/**
+ * Client tickets arrive faster as the team gets more capable, so every hire,
+ * promotion and speed perk brings in more paid work than it costs.
+ */
+export const officeSpawnInterval = (s: GameState) => 1000 / (0.6 + 0.85 * staffCapacity(s))
 
 function unlockedProblems(s: GameState): [ProblemKind, number][] {
   const o = s.office!
@@ -491,11 +504,7 @@ export function buyOfficeItem(s: GameState, id: OfficeItemId): GameState {
 
 /** Rough money per second while away in stage 2. */
 export function officeIdleRate(s: GameState, avgPay: number): number {
-  const capacity = s.office!.staff.reduce((sum, x) => {
-    const r = ROLES[x.role]
-    return x.ready && r.interval > 0 ? sum + 1000 / r.interval : sum
-  }, 0)
   const arrivals = 1000 / officeSpawnInterval(s)
-  return Math.min(capacity * teamSpeed(s), arrivals) * avgPay - officeWages(s)
+  return Math.min(staffCapacity(s), arrivals) * avgPay - officeWages(s)
 }
 
