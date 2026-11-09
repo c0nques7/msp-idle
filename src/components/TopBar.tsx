@@ -82,6 +82,17 @@ export function TopBar({ state, dispatch, onReset, view, onView }: TopBarProps) 
           Move into the office
         </button>
       )}
+      {state.stage === 2 && state.office?.complete && (
+        <button
+          className="primary office-cta"
+          onClick={() => {
+            dispatch({ type: 'enterRegion' })
+            onView('map')
+          }}
+        >
+          Open the map
+        </button>
+      )}
       {confirming ? (
         <div className="confirm">
           <span>Start over? Progress will be lost.</span>
