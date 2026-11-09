@@ -34,7 +34,7 @@ while (s.time < 120 * 60_000 && !s.region!.complete) {
 
   // Staff any site that is over capacity.
   for (const site of s.region!.sites) {
-    if (site.clients > site.techs * clientsPerTech(s) && s.money >= hireCost(site)) {
+    if (site.clients > site.techs * clientsPerTech(s) && s.money >= hireCost(s, site)) {
       s = reducer(s, { type: 'buySite', siteId: site.id, id: 'hireTech' })
     }
   }

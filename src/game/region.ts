@@ -28,7 +28,7 @@ export interface RegionEvent {
   feedback?: Feedback
 }
 
-export type ServiceId = 'noc' | 'stack' | 'soc' | 'vcio' | 'training'
+export type ServiceId = 'noc' | 'stack' | 'soc' | 'vcio' | 'training' | 'recruiting' | 'baas' | 'comanaged' | 'automation' | 'referral'
 
 export interface RegionState {
   sites: Site[]
@@ -103,9 +103,10 @@ export function previewRegion(s: GameState): GameState {
 // ----- Economy -----
 
 export const has3 = (s: GameState, id: ServiceId) => !!s.region?.services[id]
-export const clientsPerTech = (s: GameState) => (has3(s, 'stack') ? 5 : 4)
+export const clientsPerTech = (s: GameState) => 4 + (has3(s, 'stack') ? 1 : 0) + (has3(s, 'automation') ? 1 : 0)
 export function revenuePerClient(s: GameState): number {
-  return REVENUE_PER_CLIENT * (1 + (has3(s, 'vcio') ? 0.25 : 0) + (has3(s, 'soc') ? 0.1 : 0))
+  const bonus = (id: ServiceId, n: number) => (has3(s, id) ? n : 0)
+  return REVENUE_PER_CLIENT * (1 + bonus('vcio', 0.25) + bonus('soc', 0.1) + bonus('baas', 0.1) + bonus('comanaged', 0.15))
 }
 export function siteIncome(s: GameState, site: Site): number {
   return site.clients * revenuePerClient(s) * (site.health / 100) - site.techs * TECH_WAGE
@@ -138,7 +139,8 @@ export function regionTick(s: GameState, dt: number): GameState {
 
   let timer = r(s).eventTimer - dt
   if (timer <= 0) {
-    timer = 40_000 + Math.random() * 30_000
+    // Once you go global, your home region needs you less often.
+    timer = s.stage === 4 ? 90_000 + Math.random() * 50_000 : 40_000 + Math.random() * 30_000
     if (r(s).events.length < MAX_EVENTS) s = spawnEvent(s)
   }
   return withRegion(s, { eventTimer: timer })
@@ -185,12 +187,12 @@ function resolveEvent(s: GameState, ev: RegionEvent, how: 'done' | 'timeout'): G
   const site = r(s).sites.find((x) => x.id === ev.siteId)
   s = withRegion(s, { events: r(s).events.filter((x) => x.id !== ev.id) })
   if (!site) return s
-  const socSaves = info.security && has3(s, 'soc')
+  const socSaves = (info.security && has3(s, 'soc')) || ((ev.kind === 'storm' || ev.kind === 'ransomware') && has3(s, 'baas'))
   if (socSaves || (how === 'done' && ev.mistakes === 0)) {
-    s = applyOutcome(s, site, info.success, 1)
+    s = applyOutcome(s, site, has3(s, 'referral') ? { ...info.success, clients: (info.success.clients ?? 0) + 2 } : info.success, 1)
     s = { ...s, reputation: clampRep(s.reputation + 0.05) }
     s = addToast(s, 'good', `${site.name}: ${info.successText}`)
-    return addFeed(s, 'good', `${site.name}: ${info.label} handled well (${outcomeText(info.success)}).`, socSaves && how === 'timeout' ? 'Your SOC handled it.' : info.successText)
+    return addFeed(s, 'good', `${site.name}: ${info.label} handled well (${outcomeText(info.success)}).`, socSaves && how === 'timeout' ? 'Your services handled it.' : info.successText)
   }
   // Risky calls or no answer at all: the bad outcome lands, softened by training.
   const scale = (how === 'timeout' ? 1 : 0.5) * (has3(s, 'training') ? 0.5 : 1)
@@ -229,7 +231,7 @@ export function chooseEventStep(s: GameState, id: number, option: number): GameS
 export type SiteItemId = 'hireTech' | 'marketing'
 export type RegionItemId = 'openSite' | 'acquire' | ServiceId
 
-export const hireCost = (site: Site) => Math.round(2500 * Math.pow(1.12, site.hires))
+export const hireCost = (s: GameState, site: Site) => Math.round(2500 * Math.pow(1.12, site.hires) * (has3(s, 'recruiting') ? 0.75 : 1))
 export const marketingCost = (site: Site) => Math.round(5000 * Math.pow(1.3, site.marketing))
 
 export interface RegionItem {
@@ -273,6 +275,11 @@ export const REGION_ITEMS: RegionItem[] = [
   service('soc', 'Security operations (SOC)', 50_000, 'Security events always end well. +10% revenue per client.'),
   service('vcio', 'Account managers (vCIO)', 45_000, 'Quarterly planning with every client: +25% revenue per client.'),
   service('training', 'Training program', 25_000, 'Wrong calls in events cost half as much.'),
+  service('referral', 'Client referral program', 15_000, 'Every event you handle well also brings 2 referred clients.'),
+  service('recruiting', 'Recruiting pipeline', 20_000, 'A steady bench of candidates: hiring techs costs 25% less.'),
+  service('baas', 'Backup as a service', 30_000, 'Storms and ransomware always end well. +10% revenue per client.'),
+  service('comanaged', 'Co-managed IT offering', 55_000, "Support clients' own IT teams: +15% revenue per client."),
+  service('automation', 'Automation platform', 70_000, 'Scripts and RMM policies do the routine work: each tech supports 1 more client.'),
 ]
 
 function addSite(s: GameState, site: Omit<Site, 'id' | 'slot' | 'name' | 'hq' | 'hires' | 'marketing'>, label: string): GameState {
@@ -308,7 +315,7 @@ export function buySiteItem(s: GameState, siteId: number, id: SiteItemId): GameS
   if (!s.region) return s
   const site = r(s).sites.find((x) => x.id === siteId)
   if (!site) return s
-  const cost = id === 'hireTech' ? hireCost(site) : marketingCost(site)
+  const cost = id === 'hireTech' ? hireCost(s, site) : marketingCost(site)
   if (s.money < cost) return s
   s = { ...s, money: s.money - cost }
   if (id === 'hireTech') {

@@ -84,3 +84,14 @@ const HOST_SUFFIX = ['FS01', 'DC01', 'SQL01', 'PC-14', 'LT-07', 'WS-22', 'APP01'
 export function generateHost(rng: Rng, client: Client): string {
   return `${client.code}-${pick(rng, HOST_SUFFIX)}`
 }
+
+/** A stable shuffle per event step, so the right answer isn't always in the same place. */
+export function shuffledOrder(n: number, seed: number): number[] {
+  const rng = mulberry32(seed)
+  const order = [...Array(n).keys()]
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  return order
+}

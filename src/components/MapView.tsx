@@ -14,7 +14,7 @@ import {
   siteIncome,
 } from '../game/region'
 import { money } from './format'
-import { mulberry32 } from '../game/names'
+import { shuffledOrder } from '../game/names'
 import type { Props } from './types'
 
 type Selection = MapPick | null
@@ -115,7 +115,7 @@ function SitePanel({ state, dispatch, id, onClose, onOpenOffice }: Props & { id:
   if (!site) return null
   const capacity = site.techs * clientsPerTech(state)
   const drift = healthDrift(state, site)
-  const hire = hireCost(site)
+  const hire = hireCost(state, site)
   const mkt = marketingCost(site)
   return (
     <div className="office-card" role="dialog" aria-label={site.name}>
@@ -243,13 +243,3 @@ function EventPanel({ state, dispatch, id, onClose }: Props & { id: number; onCl
   )
 }
 
-/** A stable shuffle per event step, so the right answer isn't always in the same place. */
-function shuffledOrder(n: number, seed: number): number[] {
-  const rng = mulberry32(seed)
-  const order = [...Array(n).keys()]
-  for (let i = n - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[order[i], order[j]] = [order[j], order[i]]
-  }
-  return order
-}

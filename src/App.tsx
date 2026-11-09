@@ -3,6 +3,8 @@ import { OfficeView } from './components/OfficeView'
 import { OfficeShop } from './components/OfficeShop'
 import { MapView } from './components/MapView'
 import { RegionShop } from './components/RegionShop'
+import { WorldView } from './components/WorldView'
+import { GlobalShop } from './components/GlobalShop'
 import { reducer, slots, type GameState } from './game/engine'
 import { loadGame, saveGame, clearSave } from './game/save'
 import { StartScreen } from './components/StartScreen'
@@ -15,7 +17,7 @@ import { Overlays } from './components/Overlays'
 
 const TICK_MS = 100
 
-export type View = 'map' | 'office' | 'crm'
+export type View = 'world' | 'map' | 'office' | 'crm'
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, undefined, loadGame)
@@ -37,7 +39,8 @@ export default function App() {
 
   // Each new stage opens on its own view.
   useEffect(() => {
-    if (state.stage === 3) setView('map')
+    if (state.stage === 4) setView('world')
+    else if (state.stage === 3) setView('map')
     else if (state.stage === 2) setView('office')
   }, [state.stage])
 
@@ -62,11 +65,13 @@ export default function App() {
   }
 
   const inOffice = state.stage >= 2 && !!state.office
-  const inRegion = state.stage === 3 && !!state.region
+  const inRegion = state.stage >= 3 && !!state.region
+  const inWorld = state.stage === 4 && !!state.world
   // Stage 2 has no map, so fall back to the office.
-  const current: View = view === 'map' && !inRegion ? 'office' : view
+  const current: View = (view === 'map' && !inRegion) || (view === 'world' && !inWorld) ? 'office' : view
   const showOffice = inOffice && current === 'office'
   const showMap = inRegion && current === 'map'
+  const showWorld = inWorld && current === 'world'
 
   return (
     <div className="app">
@@ -77,7 +82,15 @@ export default function App() {
         view={inOffice ? current : null}
         onView={setView}
       />
-      {showMap ? (
+      {showWorld ? (
+        <main className="layout layout-office">
+          <WorldView state={state} dispatch={dispatch} onOpenMap={() => setView('map')} />
+          <aside className="side">
+            <GlobalShop state={state} dispatch={dispatch} />
+            <Feed state={state} />
+          </aside>
+        </main>
+      ) : showMap ? (
         <main className="layout layout-office">
           <MapView state={state} dispatch={dispatch} onOpenOffice={() => setView('office')} />
           <aside className="side">
@@ -103,7 +116,7 @@ export default function App() {
           </aside>
         </main>
       )}
-      <Overlays state={state} dispatch={dispatch} onEnterOffice={() => setView('office')} onEnterMap={() => setView('map')} />
+      <Overlays state={state} dispatch={dispatch} onEnterOffice={() => setView('office')} onEnterMap={() => setView('map')} onEnterWorld={() => setView('world')} />
     </div>
   )
 }

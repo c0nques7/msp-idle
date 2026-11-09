@@ -42,6 +42,19 @@ import {
   type RegionState,
   type SiteItemId,
 } from './region'
+import {
+  buyGlobal,
+  buyWorldRegionItem,
+  chooseWorldEventStep,
+  enterWorld,
+  enterWorldRegion,
+  previewWorld,
+  worldIncome,
+  worldTick,
+  type GlobalId,
+  type WorldRegionItemId,
+  type WorldState,
+} from './world'
 
 export interface Feedback {
   kind: OptionKind | 'info'
@@ -96,9 +109,10 @@ export interface WelcomeBack {
 
 export interface GameState {
   version: 3
-  stage: 1 | 2 | 3
+  stage: 1 | 2 | 3 | 4
   office: OfficeState | null
   region?: RegionState | null
+  world?: WorldState | null
   started: boolean
   seed: number
   mspName: string
@@ -404,6 +418,14 @@ export type Action =
   | { type: 'chooseEvent'; id: number; option: number }
   | { type: 'regionIntroPlayed' }
   | { type: 'dismissRegionComplete' }
+  | { type: 'enterWorld' }
+  | { type: 'previewWorld' }
+  | { type: 'enterWorldRegion'; slot: number }
+  | { type: 'buyWorldRegion'; regionId: number; id: WorldRegionItemId }
+  | { type: 'buyGlobal'; id: GlobalId }
+  | { type: 'chooseWorldEvent'; id: number; option: number }
+  | { type: 'worldIntroPlayed' }
+  | { type: 'dismissWorldComplete' }
 
 function runTechs(s: GameState, dt: number): GameState {
   const wages = (wagesPerSec(s) * dt) / 1000
@@ -475,7 +497,8 @@ function tick(s: GameState, dt: number): GameState {
 
   if (s.stage >= 2) {
     s = officeTick(s, dt)
-    if (s.stage === 3) s = regionTick(s, dt)
+    if (s.stage >= 3) s = regionTick(s, dt)
+    if (s.stage === 4) s = worldTick(s, dt)
   } else {
     s = runTechs(s, dt)
     s = checkMilestones(s)
@@ -520,7 +543,7 @@ export function idleRatePerSec(s: GameState): number {
   ]
   const manualRate = manual.reduce((sum, [r]) => sum + r, 0)
   const avgPay = manualRate > 0 ? manual.reduce((sum, [r, p]) => sum + r * p, 0) / manualRate : 0
-  if (s.stage >= 2 && s.office) return income + officeIdleRate(s, avgPay * mult) + regionIncome(s)
+  if (s.stage >= 2 && s.office) return income + officeIdleRate(s, avgPay * mult) + regionIncome(s) + worldIncome(s)
   const juniorCapacity = (s.juniors * 1000) / JUNIOR_INTERVAL
   const seniorCapacity = has(s, 'senior') ? 1000 / SENIOR_INTERVAL : 0
   const outages = Math.min(rate('outage'), seniorCapacity)
@@ -549,7 +572,7 @@ export function applyAwayTime(s: GameState, now: number): GameState {
 export function reducer(s: GameState, a: Action): GameState {
   switch (a.type) {
     case 'tick':
-      return s.started && !s.welcomeBack && !s.showPromotion && !s.office?.showComplete && !s.region?.showComplete ? tick(s, a.dt) : s
+      return s.started && !s.welcomeBack && !s.showPromotion && !s.office?.showComplete && !s.region?.showComplete && !s.world?.showComplete ? tick(s, a.dt) : s
     case 'enterRegion':
       return s.stage === 2 && s.office?.complete ? enterRegion(s) : s
     case 'previewRegion':
@@ -560,6 +583,22 @@ export function reducer(s: GameState, a: Action): GameState {
       return buySiteItem(s, a.siteId, a.id)
     case 'chooseEvent':
       return chooseEventStep(s, a.id, a.option)
+    case 'enterWorld':
+      return s.stage === 3 && s.region?.complete ? enterWorld(s) : s
+    case 'previewWorld':
+      return previewWorld(previewRegion(previewOffice(newGame())))
+    case 'enterWorldRegion':
+      return enterWorldRegion(s, a.slot)
+    case 'buyWorldRegion':
+      return buyWorldRegionItem(s, a.regionId, a.id)
+    case 'buyGlobal':
+      return buyGlobal(s, a.id)
+    case 'chooseWorldEvent':
+      return chooseWorldEventStep(s, a.id, a.option)
+    case 'worldIntroPlayed':
+      return s.world ? { ...s, world: { ...s.world, introPlayed: true } } : s
+    case 'dismissWorldComplete':
+      return s.world ? { ...s, world: { ...s.world, showComplete: false } } : s
     case 'regionIntroPlayed':
       return s.region ? { ...s, region: { ...s.region, introPlayed: true } } : s
     case 'dismissRegionComplete':

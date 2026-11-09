@@ -8,7 +8,7 @@ function duration(seconds: number): string {
   return `${m} min`
 }
 
-export function Overlays({ state, dispatch, onEnterOffice, onEnterMap }: Props & { onEnterOffice: () => void; onEnterMap: () => void }) {
+export function Overlays({ state, dispatch, onEnterOffice, onEnterMap, onEnterWorld }: Props & { onEnterOffice: () => void; onEnterMap: () => void; onEnterWorld: () => void }) {
   return (
     <>
       <div className="toasts" aria-live="polite">
@@ -100,10 +100,37 @@ export function Overlays({ state, dispatch, onEnterOffice, onEnterMap }: Props &
             <p className="eyebrow">Stage 3 complete</p>
             <h2 id="region-done-title">{state.mspName} is the region's MSP</h2>
             <p>
-              Five sites, a central NOC and a security operations team. A private equity firm has called with an offer to fund a
-              national rollup. That is stage 4, which isn't built yet. For now, keep growing your region.
+              Five sites, a central NOC and a security operations team. A private equity firm has offered to fund your expansion
+              overseas. You are now CEO.
             </p>
-            <button className="primary" onClick={() => dispatch({ type: 'dismissRegionComplete' })}>
+            <div className="modal-actions">
+              <button className="secondary" onClick={() => dispatch({ type: 'dismissRegionComplete' })}>
+                Stay regional for now
+              </button>
+              <button
+                className="primary"
+                onClick={() => {
+                  dispatch({ type: 'enterWorld' })
+                  onEnterWorld()
+                }}
+              >
+                Go global
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {state.world?.showComplete && (
+        <div className="modal-backdrop">
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="world-done-title">
+            <p className="eyebrow">Stage 4 complete</p>
+            <h2 id="world-done-title">{state.mspName} rang the opening bell</h2>
+            <p>
+              Six regions, support that follows the sun, a global SOC and audited books. You went from closing password resets to running a
+              public, global MSP. Thanks for playing. Your company keeps running if you want to keep growing it.
+            </p>
+            <button className="primary" onClick={() => dispatch({ type: 'dismissWorldComplete' })}>
               Keep playing
             </button>
           </div>

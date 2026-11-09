@@ -24,12 +24,17 @@ export function TopBar({ state, dispatch, onReset, view, onView }: TopBarProps) 
         </span>
         <div>
           <div className="brand-name">{state.mspName}</div>
-          <div className="brand-sub">{state.stage === 3 ? 'Director of Operations' : state.stage === 2 ? 'Service Desk Lead' : 'Service Desk'}</div>
+          <div className="brand-sub">{state.stage === 4 ? 'CEO' : state.stage === 3 ? 'Director of Operations' : state.stage === 2 ? 'Service Desk Lead' : 'Service Desk'}</div>
         </div>
       </div>
       {view && (
         <div className="view-tabs" role="tablist" aria-label="View">
-          {state.stage === 3 && (
+          {state.stage === 4 && (
+            <button role="tab" aria-selected={view === 'world'} className={view === 'world' ? 'active' : ''} onClick={() => onView('world')}>
+              World
+            </button>
+          )}
+          {state.stage >= 3 && (
             <button role="tab" aria-selected={view === 'map'} className={view === 'map' ? 'active' : ''} onClick={() => onView('map')}>
               Map
             </button>
@@ -91,6 +96,17 @@ export function TopBar({ state, dispatch, onReset, view, onView }: TopBarProps) 
           }}
         >
           Open the map
+        </button>
+      )}
+      {state.stage === 3 && state.region?.complete && (
+        <button
+          className="primary office-cta"
+          onClick={() => {
+            dispatch({ type: 'enterWorld' })
+            onView('world')
+          }}
+        >
+          Go global
         </button>
       )}
       {confirming ? (
