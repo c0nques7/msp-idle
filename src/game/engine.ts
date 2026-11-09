@@ -30,6 +30,18 @@ import {
   type OfficeItemId,
   type OfficeState,
 } from './office'
+import {
+  buyRegionItem,
+  buySiteItem,
+  chooseEventStep,
+  enterRegion,
+  previewRegion,
+  regionIncome,
+  regionTick,
+  type RegionItemId,
+  type RegionState,
+  type SiteItemId,
+} from './region'
 
 export interface Feedback {
   kind: OptionKind | 'info'
@@ -84,8 +96,9 @@ export interface WelcomeBack {
 
 export interface GameState {
   version: 3
-  stage: 1 | 2
+  stage: 1 | 2 | 3
   office: OfficeState | null
+  region?: RegionState | null
   started: boolean
   seed: number
   mspName: string
@@ -171,7 +184,7 @@ export const clickPower = (s: GameState) => (has(s, 'shortcuts') ? 2 : 1)
 export const techCapacity = (s: GameState) => (s.juniors * 1000) / JUNIOR_INTERVAL + (has(s, 'senior') ? 1000 / SENIOR_INTERVAL : 0)
 /** New clients come with each hire, so techs always have paid work waiting. */
 export const spawnInterval = (s: GameState) =>
-  s.stage === 2 ? officeSpawnInterval(s) : 1000 / (1000 / Math.max(1500, 3500 - s.ticketsClosed * 8) + 0.85 * techCapacity(s))
+  s.stage >= 2 ? officeSpawnInterval(s) : 1000 / (1000 / Math.max(1500, 3500 - s.ticketsClosed * 8) + 0.85 * techCapacity(s))
 export const wagesPerSec = (s: GameState) => s.juniors * JUNIOR_WAGE + (has(s, 'senior') ? SENIOR_WAGE : 0)
 
 export function unlockedKinds(s: GameState): TicketKind[] {
@@ -384,6 +397,13 @@ export type Action =
   | { type: 'chooseProblem'; id: number; option: number }
   | { type: 'introPlayed' }
   | { type: 'dismissOfficeComplete' }
+  | { type: 'enterRegion' }
+  | { type: 'previewRegion' }
+  | { type: 'buyRegion'; id: RegionItemId }
+  | { type: 'buySite'; siteId: number; id: SiteItemId }
+  | { type: 'chooseEvent'; id: number; option: number }
+  | { type: 'regionIntroPlayed' }
+  | { type: 'dismissRegionComplete' }
 
 function runTechs(s: GameState, dt: number): GameState {
   const wages = (wagesPerSec(s) * dt) / 1000
@@ -453,8 +473,9 @@ function tick(s: GameState, dt: number): GameState {
     s = { ...s, spawnTimer }
   }
 
-  if (s.stage === 2) {
+  if (s.stage >= 2) {
     s = officeTick(s, dt)
+    if (s.stage === 3) s = regionTick(s, dt)
   } else {
     s = runTechs(s, dt)
     s = checkMilestones(s)
@@ -499,7 +520,7 @@ export function idleRatePerSec(s: GameState): number {
   ]
   const manualRate = manual.reduce((sum, [r]) => sum + r, 0)
   const avgPay = manualRate > 0 ? manual.reduce((sum, [r, p]) => sum + r * p, 0) / manualRate : 0
-  if (s.stage === 2 && s.office) return income + officeIdleRate(s, avgPay * mult)
+  if (s.stage >= 2 && s.office) return income + officeIdleRate(s, avgPay * mult) + regionIncome(s)
   const juniorCapacity = (s.juniors * 1000) / JUNIOR_INTERVAL
   const seniorCapacity = has(s, 'senior') ? 1000 / SENIOR_INTERVAL : 0
   const outages = Math.min(rate('outage'), seniorCapacity)
@@ -528,7 +549,21 @@ export function applyAwayTime(s: GameState, now: number): GameState {
 export function reducer(s: GameState, a: Action): GameState {
   switch (a.type) {
     case 'tick':
-      return s.started && !s.welcomeBack && !s.showPromotion && !s.office?.showComplete ? tick(s, a.dt) : s
+      return s.started && !s.welcomeBack && !s.showPromotion && !s.office?.showComplete && !s.region?.showComplete ? tick(s, a.dt) : s
+    case 'enterRegion':
+      return s.stage === 2 && s.office?.complete ? enterRegion(s) : s
+    case 'previewRegion':
+      return previewRegion(previewOffice(newGame()))
+    case 'buyRegion':
+      return buyRegionItem(s, a.id)
+    case 'buySite':
+      return buySiteItem(s, a.siteId, a.id)
+    case 'chooseEvent':
+      return chooseEventStep(s, a.id, a.option)
+    case 'regionIntroPlayed':
+      return s.region ? { ...s, region: { ...s.region, introPlayed: true } } : s
+    case 'dismissRegionComplete':
+      return s.region ? { ...s, region: { ...s.region, showComplete: false } } : s
     case 'enterOffice':
       return s.stage === 1 && s.promoted ? enterOffice(s) : s
     case 'previewOffice':

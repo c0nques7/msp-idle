@@ -1,20 +1,21 @@
 import { useState, type Dispatch } from 'react'
 import { has, idleRatePerSec, repMultiplier, type Action, type GameState } from '../game/engine'
 import { money, Stars } from './format'
+import type { View } from '../App'
 
 interface TopBarProps {
   state: GameState
   dispatch: Dispatch<Action>
   onReset: () => void
-  view: 'office' | 'crm' | null
-  onView: (v: 'office' | 'crm') => void
+  view: View | null
+  onView: (v: View) => void
 }
 
 export function TopBar({ state, dispatch, onReset, view, onView }: TopBarProps) {
   const [confirming, setConfirming] = useState(false)
   const queued = state.tickets.filter((t) => !t.active).length
   const idle = idleRatePerSec(state)
-  const staff = state.office ? state.office.staff.length : state.juniors + (has(state, 'senior') ? 1 : 0)
+  const staff = state.region ? state.region.sites.reduce((n, x) => n + x.techs, 0) + (state.office?.staff.length ?? 0) : state.office ? state.office.staff.length : state.juniors + (has(state, 'senior') ? 1 : 0)
   return (
     <header className="topbar">
       <div className="brand">
@@ -23,11 +24,16 @@ export function TopBar({ state, dispatch, onReset, view, onView }: TopBarProps) 
         </span>
         <div>
           <div className="brand-name">{state.mspName}</div>
-          <div className="brand-sub">{state.stage === 2 ? 'Service Desk Lead' : 'Service Desk'}</div>
+          <div className="brand-sub">{state.stage === 3 ? 'Director of Operations' : state.stage === 2 ? 'Service Desk Lead' : 'Service Desk'}</div>
         </div>
       </div>
       {view && (
         <div className="view-tabs" role="tablist" aria-label="View">
+          {state.stage === 3 && (
+            <button role="tab" aria-selected={view === 'map'} className={view === 'map' ? 'active' : ''} onClick={() => onView('map')}>
+              Map
+            </button>
+          )}
           <button role="tab" aria-selected={view === 'office'} className={view === 'office' ? 'active' : ''} onClick={() => onView('office')}>
             Office
           </button>

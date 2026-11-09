@@ -31,7 +31,11 @@ export function StartScreen({ state, dispatch }: Props) {
           <button className="link" onClick={() => dispatch({ type: 'previewOffice' })}>
             Skip ahead to the office
           </button>{' '}
-          with a ready-made team.
+          with a ready-made team, or{' '}
+          <button className="link" onClick={() => dispatch({ type: 'previewRegion' })}>
+            skip ahead to the regional map
+          </button>{' '}
+          (stage 3).
         </p>
       </div>
     </div>

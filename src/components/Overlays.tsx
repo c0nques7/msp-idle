@@ -8,7 +8,7 @@ function duration(seconds: number): string {
   return `${m} min`
 }
 
-export function Overlays({ state, dispatch, onEnterOffice }: Props & { onEnterOffice: () => void }) {
+export function Overlays({ state, dispatch, onEnterOffice, onEnterMap }: Props & { onEnterOffice: () => void; onEnterMap: () => void }) {
   return (
     <>
       <div className="toasts" aria-live="polite">
@@ -73,10 +73,37 @@ export function Overlays({ state, dispatch, onEnterOffice }: Props & { onEnterOf
             <p className="eyebrow">Stage 2 complete</p>
             <h2 id="done-title">{state.mspName} is outgrowing one office</h2>
             <p>
-              A second floor, a full team and an office that runs itself. In the full game, a competitor now offers to sell you their
-              second site, and the view pulls back to a map. Stage 3 is next on the plan. For now, keep playing.
+              A second floor, a full team and an office that runs itself. A competitor is retiring, the phones keep ringing from
+              nearby towns, and it is time to think regionally. You are now Director of Operations.
             </p>
-            <button className="primary" onClick={() => dispatch({ type: 'dismissOfficeComplete' })}>
+            <div className="modal-actions">
+              <button className="secondary" onClick={() => dispatch({ type: 'dismissOfficeComplete' })}>
+                Stay in the office for now
+              </button>
+              <button
+                className="primary"
+                onClick={() => {
+                  dispatch({ type: 'enterRegion' })
+                  onEnterMap()
+                }}
+              >
+                Open the map
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {state.region?.showComplete && (
+        <div className="modal-backdrop">
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="region-done-title">
+            <p className="eyebrow">Stage 3 complete</p>
+            <h2 id="region-done-title">{state.mspName} is the region's MSP</h2>
+            <p>
+              Five sites, a central NOC and a security operations team. A private equity firm has called with an offer to fund a
+              national rollup. That is stage 4, which isn't built yet. For now, keep growing your region.
+            </p>
+            <button className="primary" onClick={() => dispatch({ type: 'dismissRegionComplete' })}>
               Keep playing
             </button>
           </div>

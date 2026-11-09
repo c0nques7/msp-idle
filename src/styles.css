@@ -954,3 +954,18 @@ h3 {
     width: calc(100% - 16px);
   }
 }
+
+/* Stage 3 map */
+.site-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.site-actions .secondary {
+  text-align: left;
+}
+.block {
+  display: block;
+  margin-top: 2px;
+}
