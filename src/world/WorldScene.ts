@@ -134,7 +134,7 @@ export class WorldScene {
     const h = this.container.clientHeight || 1
     this.renderer.setSize(w, h)
     const aspect = w / h
-    const viewH = Math.max(15, 27 / aspect)
+    const viewH = Math.max(17, 27 / aspect)
     this.camera.left = (-viewH * aspect) / 2
     this.camera.right = (viewH * aspect) / 2
     this.camera.top = viewH / 2
